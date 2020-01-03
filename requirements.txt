@@ -1,2 +1,1 @@
 chembl-webresource-client
-argcomplete

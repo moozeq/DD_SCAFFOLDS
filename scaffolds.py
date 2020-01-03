@@ -2,11 +2,8 @@
 
 import os
 import sys
-
-from chembl_webresource_client.new_client import new_client
 import subprocess
 import argparse
-import argcomplete
 
 modes = [
     'RINGS_WITH_LINKERS_1', 'RINGS_WITH_LINKERS_2', 'MURCKO_1', 'MURCKO_2', 'OPREA_1', 'OPREA_2', 'OPREA_3',
@@ -18,7 +15,6 @@ def main():
     parser.add_argument('target', type=str, help='enzyme target')
     parser.add_argument('mode', type=str, help='inhibitors compering method', choices=modes)
     parser.add_argument('-o', '--output', type=str, help='output file')
-    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     download_inhibitors(args.target)
@@ -29,6 +25,7 @@ def main():
 
 def download_inhibitors(target: str):
     # download inhibitors from chembl
+    from chembl_webresource_client.new_client import new_client
     if not os.path.isfile(target):
         print('[*] Downloading inhibitors from ChEMBL...')
         chembl_target = new_client.target
@@ -56,14 +53,17 @@ def download_inhibitors(target: str):
 
 def strip(target: str):
     # strip-it on downloaded inhibitors
-    if not os.path.isfile(target + '_scaffolds'):
-        print('[*] Perfoming strip-it on inhibitors...')
+    scaffolds_filename = f'{target}_scaffolds'
+    if not os.path.isfile(scaffolds_filename):
+        print(f'[*] Perfoming strip-it on inhibitors to file: {scaffolds_filename}')
         ret = subprocess.call(
-            ['strip-it', '--inputFormat', 'smiles', '--input', target, '--output', target + '_scaffolds'])
+            ['strip-it', '--inputFormat', 'smiles', '--input', target, '--output', scaffolds_filename])
         if ret:
             print('[-] strip-it error occurred')
             sys.exit(1)
         print('[+] Done!')
+
+    return scaffolds_filename
 
 
 def merge(target: str, mode: str):
@@ -102,7 +102,7 @@ def show_results(scaffolds, output: str = None):
             o.writelines(result)
         print('[+] Done!\n')
 
-    print('Scaffold:\n\t<list of inhibitors ChEMBL ids>\n')
+    print('Scaffold:\n\t<ChEMBL id>\t<SMILE>\n')
     print(''.join(result))
 
 
