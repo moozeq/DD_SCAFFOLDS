@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import os
-import sys
-import subprocess
 import argparse
+import os
+import subprocess
+import sys
 
 modes = [
     'RINGS_WITH_LINKERS_1', 'RINGS_WITH_LINKERS_2', 'MURCKO_1', 'MURCKO_2', 'OPREA_1', 'OPREA_2', 'OPREA_3',
@@ -53,14 +53,43 @@ def download_inhibitors(target: str):
 
 def strip(target: str):
     # strip-it on downloaded inhibitors
+    target_no_duplicates = f'{target}_no_duplicates'
+    wrong_ligands = f'{target}_wrong_ligands'
     scaffolds_filename = f'{target}_scaffolds'
     if not os.path.isfile(scaffolds_filename):
+        print(f'[*] Removing duplicates from file: {target}')
+        with open(target, 'r') as scaffs_file:
+            data = scaffs_file.readlines()
+        data = set([line.strip() for line in data])
+        data_dict = {line.split()[0]: line.split()[1] for line in data if len(line.split()) >= 2}
+        data_dict = {k: v for k, v in sorted(data_dict.items(), key=lambda item: item[1])}  # sort dict by id
+        data_dict = {v: k for k, v in data_dict.items()}  # invert dict -> id: smile
+        data_list = [f'{smile} {chem_id}' for chem_id, smile in data_dict.items()]
         print(f'[*] Perfoming strip-it on inhibitors to file: {scaffolds_filename}')
-        ret = subprocess.call(
-            ['strip-it', '--inputFormat', 'smiles', '--input', target, '--output', scaffolds_filename])
-        if ret:
-            print('[-] strip-it error occurred')
-            sys.exit(1)
+        while True:
+            with open(target_no_duplicates, 'w') as scaffs_file:
+                scaffs_file.write('\n'.join(data_list))
+            ret = subprocess.call(
+                ['strip-it', '--inputFormat', 'smiles', '--input', target_no_duplicates, '--output',
+                 scaffolds_filename])
+            if ret:
+                with open(scaffolds_filename, 'r') as scaffs:
+                    last_ligand_id = scaffs.readlines()[-1].split()[0]
+                    ligand = f'{data_dict[last_ligand_id]} {last_ligand_id}'
+                    wrong_ligand_index = data_list.index(ligand) + 1
+                    wrong_ligand = data_list[wrong_ligand_index] if wrong_ligand_index < len(data_list) else None
+                    if wrong_ligand:
+                        print(
+                            f'[*] strip-it error occurred, try to fix database, removed ligands will be saved to {wrong_ligands}')
+                        with open(wrong_ligands, 'a') as del_ligands:
+                            del_ligands.write(f'{wrong_ligand}\n')
+                            del data_list[wrong_ligand_index]
+                    else:
+                        break
+
+                os.remove(scaffolds_filename)
+            else:
+                break
         print('[+] Done!')
 
     return scaffolds_filename
