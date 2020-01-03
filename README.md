@@ -1,9 +1,9 @@
 # Installation
 
 ```bash
-git clone https://github.com/moozeq/DD_SCAFFOLDS.git
+git clone https://github.com/moozeq/DD_Scaffolds.git
 
-cd DD_SCAFFOLDS
+cd DD_Scaffolds
 pip3 install -r requirements.txt
 ```
 

@@ -8,11 +8,12 @@ import subprocess
 import argparse
 import argcomplete
 
-if __name__ == '__main__':
-    modes = [
-        'RINGS_WITH_LINKERS_1', 'RINGS_WITH_LINKERS_2', 'MURCKO_1', 'MURCKO_2', 'OPREA_1', 'OPREA_2', 'OPREA_3',
-        'SCHUFFENHAUER_1', 'SCHUFFENHAUER_2', 'SCHUFFENHAUER_3', 'SCHUFFENHAUER_4', 'SCHUFFENHAUER_5']
+modes = [
+    'RINGS_WITH_LINKERS_1', 'RINGS_WITH_LINKERS_2', 'MURCKO_1', 'MURCKO_2', 'OPREA_1', 'OPREA_2', 'OPREA_3',
+    'SCHUFFENHAUER_1', 'SCHUFFENHAUER_2', 'SCHUFFENHAUER_3', 'SCHUFFENHAUER_4', 'SCHUFFENHAUER_5']
 
+
+def main():
     parser = argparse.ArgumentParser(description='Searching for same scaffolds in Homo sapiens enzymes inhibitors')
     parser.add_argument('target', type=str, help='enzyme target')
     parser.add_argument('mode', type=str, help='inhibitors compering method', choices=modes)
@@ -20,12 +21,18 @@ if __name__ == '__main__':
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
+    download_inhibitors(args.target)
+    strip(args.target)
+    scaffolds = merge(args.target, args.mode)
+    show_results(scaffolds)
+
+
+def download_inhibitors(target: str):
     # download inhibitors from chembl
-    if not os.path.isfile(args.target):
+    if not os.path.isfile(target):
         print('[*] Downloading inhibitors from ChEMBL...')
-        target = new_client.target
-        targets = target.filter(target_synonym__icontains=args.target, organism='Homo sapiens').only(
-            ['target_chembl_id'])
+        chembl_target = new_client.target
+        targets = chembl_target.filter(target_synonym__icontains=target, organism='Homo sapiens').only(['target_chembl_id'])
         if len(targets) > 1:
             print('[-] Found multiple targets')
             sys.exit(1)
@@ -41,28 +48,32 @@ if __name__ == '__main__':
         print('[+] Done!')
 
         print('[*] Writing inhibitors to file...')
-        with open(args.target, 'w') as f:
+        with open(target, 'w') as f:
             for i in inhibitors:
                 f.write(i['canonical_smiles'] + ' ' + i['molecule_chembl_id'] + '\n')
         print('[+] Done!')
 
+
+def strip(target: str):
     # strip-it on downloaded inhibitors
-    if not os.path.isfile(args.target + '_scaffolds'):
+    if not os.path.isfile(target + '_scaffolds'):
         print('[*] Perfoming strip-it on inhibitors...')
         ret = subprocess.call(
-            ['strip-it', '--inputFormat', 'smiles', '--input', args.target, '--output', args.target + '_scaffolds'])
+            ['strip-it', '--inputFormat', 'smiles', '--input', target, '--output', target + '_scaffolds'])
         if ret:
             print('[-] strip-it error occurred')
             sys.exit(1)
         print('[+] Done!')
 
+
+def merge(target: str, mode: str):
     name_index = 0
     molecule_index = 1
-    method_index = modes.index(args.mode) + 2  # because id and molecule go first
-    scaffolds = {}
+    method_index = modes.index(mode) + 2  # because id and molecule go first
 
+    scaffolds = {}
     print('[*] Merging molecules with same scaffold...')
-    with open(args.target + '_scaffolds') as s:
+    with open(target + '_scaffolds') as s:
         s.readline()
         for line in s:
             inhib = line.split()
@@ -72,9 +83,12 @@ if __name__ == '__main__':
 
             if scaff not in scaffolds:
                 scaffolds[scaff] = []
-            scaffolds[scaff].append(name)
+            scaffolds[scaff].append(f'{name}\t{molecule}')
     print('[+] Done!\n')
+    return scaffolds
 
+
+def show_results(scaffolds, output: str = None):
     result = []
     for scaffold in scaffolds:
         result.append(scaffold + ':\n')
@@ -82,12 +96,15 @@ if __name__ == '__main__':
             result.append('\t' + name + '\n')
         result.append('\n')
 
-    if args.output:
+    if output:
         print('[*] Writing results to file...')
-        with open(args.output, 'w') as o:
+        with open(output, 'w') as o:
             o.writelines(result)
         print('[+] Done!\n')
 
     print('Scaffold:\n\t<list of inhibitors ChEMBL ids>\n')
     print(''.join(result))
 
+
+if __name__ == '__main__':
+    main()
