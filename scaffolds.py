@@ -5,9 +5,16 @@ import os
 import subprocess
 import sys
 
+# compering methods
 modes = [
     'RINGS_WITH_LINKERS_1', 'RINGS_WITH_LINKERS_2', 'MURCKO_1', 'MURCKO_2', 'OPREA_1', 'OPREA_2', 'OPREA_3',
-    'SCHUFFENHAUER_1', 'SCHUFFENHAUER_2', 'SCHUFFENHAUER_3', 'SCHUFFENHAUER_4', 'SCHUFFENHAUER_5']
+    'SCHUFFENHAUER_1', 'SCHUFFENHAUER_2', 'SCHUFFENHAUER_3', 'SCHUFFENHAUER_4', 'SCHUFFENHAUER_5'
+]
+
+# shortcuts for compering methods
+short_modes = [
+    'rwl1', 'rwl2', 'mur1', 'mur2', 'opr1', 'opr2', 'opr3', 'sch1', 'sch2', 'sch3', 'sch4', 'sch5'
+]
 
 
 def main():
@@ -119,7 +126,15 @@ def strip(target: str):
 def merge(target: str, mode: str):
     name_index = 0
     molecule_index = 1
-    method_index = modes.index(mode) + 2  # because id and molecule go first
+    # allow use full name or just shortcut of compering method
+    if mode in modes:
+        method_index = modes.index(mode) + 2  # because id and molecule go first
+    elif mode in short_modes:
+        method_index = short_modes.index(mode) + 2
+    else:
+        # default mode
+        print(f'[*] Couldn\'t find {mode}, use {modes[0]} instead')
+        method_index = 0 + 2
 
     # store scaffolds as dict which holds list of ligands info
     scaffolds = {}
