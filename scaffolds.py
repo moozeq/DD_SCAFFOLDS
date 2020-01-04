@@ -113,6 +113,7 @@ def merge(target: str, mode: str):
             if scaff not in scaffolds:
                 scaffolds[scaff] = []
             scaffolds[scaff].append(f'{name}\t{molecule}')
+    scaffolds = {k: scaffolds[k] for k in sorted(scaffolds, key=lambda k: len(scaffolds[k]))}
     print('[+] Done!\n')
     return scaffolds
 
