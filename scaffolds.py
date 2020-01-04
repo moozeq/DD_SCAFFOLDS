@@ -104,15 +104,19 @@ def merge(target: str, mode: str):
     print('[*] Merging molecules with same scaffold...')
     with open(target + '_scaffolds') as s:
         s.readline()
+        i = 0
         for line in s:
             inhib = line.split()
             name = inhib[name_index]
+            if name.endswith('_ligand'):
+                name = name[:-len('_ligand')]
             molecule = inhib[molecule_index]
             scaff = inhib[method_index]
 
             if scaff not in scaffolds:
                 scaffolds[scaff] = []
-            scaffolds[scaff].append(f'{name}\t{molecule}')
+            scaffolds[scaff].append(f'[{i}] {name}\t{molecule}')
+            i += 1
     scaffolds = {k: scaffolds[k] for k in sorted(scaffolds, key=lambda k: len(scaffolds[k]))}
     print('[+] Done!\n')
     return scaffolds
