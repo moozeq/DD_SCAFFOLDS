@@ -70,7 +70,7 @@ def download_inhibitors(target: str):
 
 def strip(target: str):
     # strip-it on downloaded inhibitors
-    target_no_duplicates = f'{target}_no_duplicates'
+    good_ligands = f'{target}_good_ligands'
     wrong_ligands = f'{target}_wrong_ligands'
     scaffolds_filename = f'{target}_scaffolds'
     if not os.path.isfile(scaffolds_filename):
@@ -82,16 +82,16 @@ def strip(target: str):
         data_dict = {line.split()[0]: line.split()[1] for line in data if len(line.split()) >= 2}
         # sort dict by id
         data_dict = {k: v for k, v in sorted(data_dict.items(), key=lambda item: item[1])}
-        # invert dict -> id: smile
-        data_dict = {v: k for k, v in data_dict.items()}
+        # invert to id: smile and change id -> [<index>]_id to preserve original indexes
+        data_dict = {f'INDEX_{index}_{chem_id}': smile for index, (smile, chem_id) in enumerate(data_dict.items())}
         # make list from dict with smile and chem_id separated with space
         data_list = [f'{smile} {chem_id}' for chem_id, smile in data_dict.items()]
         print(f'[*] Perfoming strip-it on inhibitors to file: {scaffolds_filename}')
         while True:
-            with open(target_no_duplicates, 'w') as scaffs_file:
+            with open(good_ligands, 'w') as scaffs_file:
                 scaffs_file.write('\n'.join(data_list))
             ret = subprocess.call(
-                ['strip-it', '--inputFormat', 'smiles', '--input', target_no_duplicates, '--output',
+                ['strip-it', '--inputFormat', 'smiles', '--input', good_ligands, '--output',
                  scaffolds_filename])
             # strip-it failure
             if ret:
@@ -108,6 +108,7 @@ def strip(target: str):
                         print(f'[*] Successfully removed wrong ligand, it will be saved to {wrong_ligands}')
                         with open(wrong_ligands, 'a') as del_ligands:
                             del_ligands.write(f'{wrong_ligand}\n')
+                            # safely delete, original indexes are preserved in chem_ids
                             del data_list[wrong_ligand_index]
                     # if no wrong ligand it means we finished fixing database
                     else:
@@ -140,6 +141,7 @@ def merge(target: str, mode: str):
     scaffolds = {}
     print('[*] Merging molecules with same scaffold...')
     with open(target + '_scaffolds') as s:
+        # read line with header
         s.readline()
         i = 0
         for line in s:
@@ -148,6 +150,16 @@ def merge(target: str, mode: str):
             # get rid of _ligand suffix
             if name.endswith('_ligand'):
                 name = name[:-len('_ligand')]
+            # get original index from name
+            if name.startswith('INDEX_'):
+                # remove INDEX_ prefix
+                name = name[len('INDEX_'):]
+                # split with _
+                name_parts = name.split('_')
+                # check if it's index, if yes remove it from name
+                if name_parts[0].isdigit():
+                    i = int(name_parts[0])
+                    name = '_'.join(name_parts[1:])
             # molecule in smiles
             molecule = inhib[molecule_index]
             # scaffold in smiles
